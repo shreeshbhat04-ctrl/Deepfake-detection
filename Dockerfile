@@ -1,7 +1,7 @@
 # 1. Use stable python image
 FROM python:3.11-slim-bookworm
 
-# 2. Set up a non-root user (Hugging Face security requirement)
+# 2. Set up a non-root user (Good for security on all clouds)
 RUN useradd -m -u 1000 user
 USER user
 ENV HOME=/home/user \
@@ -10,7 +10,7 @@ ENV HOME=/home/user \
 # 3. Set working directory
 WORKDIR $HOME/app
 
-# 4. Install system dependencies (as root, then switch back)
+# 4. Install system dependencies (as root)
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1 \
@@ -32,9 +32,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 8. Copy the rest of the application code
 COPY --chown=user . .
 
-# 9. IMPORTANT: Hugging Face listens on port 7860
+# 9. UNIVERSAL PORT CONFIGURATION
+# We default to 7860 (for Hugging Face local testing), 
+# but allow the cloud provider to override it via the $PORT variable.
 ENV PORT=7860
-EXPOSE 7860
+EXPOSE $PORT
 
-# 10. Start the app
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860"]
+# 10. Start the app using the variable
+CMD uvicorn api:app --host 0.0.0.0 --port $PORT
