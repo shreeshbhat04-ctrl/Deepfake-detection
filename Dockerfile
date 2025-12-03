@@ -38,4 +38,4 @@ EXPOSE 8080
 
 # 10. Start the app using the variable
 # We use the shell form so $PORT is definitely read
-CMD gunicorn -k uvicorn.workers.UvicornWorker app:app --bind 0.0.0.0:$PORT --workers 1 --threads 8 --timeout 0
+CMD ["sh", "-c", "uvicorn app:app --host 0.0.0.0 --port ${PORT:-8080}"]
