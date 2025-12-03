@@ -33,10 +33,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY --chown=user . .
 
 # 9. UNIVERSAL PORT CONFIGURATION
-# We default to 7860 (for Hugging Face local testing), 
-# but allow the cloud provider to override it via the $PORT variable.
-ENV PORT=7860
-EXPOSE $PORT
+ENV PORT=8080
+EXPOSE 8080
 
 # 10. Start the app using the variable
-CMD uvicorn app:app --host 0.0.0.0 --port $PORT
+# We use the shell form so $PORT is definitely read
+CMD gunicorn -k uvicorn.workers.UvicornWorker api:app --bind 0.0.0.0:$PORT --workers 1 --threads 8 --timeout 0
