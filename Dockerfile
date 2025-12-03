@@ -39,4 +39,4 @@ ENV PORT=7860
 EXPOSE $PORT
 
 # 10. Start the app using the variable
-CMD uvicorn api:app --host 0.0.0.0 --port $PORT
+CMD uvicorn app:app --host 0.0.0.0 --port $PORT
