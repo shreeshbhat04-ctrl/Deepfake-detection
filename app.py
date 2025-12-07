@@ -15,6 +15,11 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 app = FastAPI()
 
+allowed_origins = [
+    "http://localhost:5173",                 # local vite
+    "http://localhost:8080",                 # if you're using that
+    "https://vercel.com/shreesha-hbs-projects/deepfake-detection",    # ← replace with real URL after first deploy
+]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # tighten in prod
