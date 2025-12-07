@@ -16,7 +16,9 @@ const Index = () => {
     prediction: "real" | "fake";
     confidence: number;
   } | null>(null);
-
+const API_URL =
+  import.meta.env.VITE_API_URL ||
+  "https://deepfake-detector-976321071214.asia-south1.run.app";
   const handleFileSelect = (file: File) => {
     setSelectedFile(file);
     setResult(null);
@@ -28,48 +30,57 @@ const Index = () => {
     toast.success("Video loaded successfully");
   };
 
-  const handleAnalyze = async () => {
-    if (!selectedFile) {
-      toast.error("Please upload a video first");
+ const handleAnalyze = async () => {
+  if (!selectedFile) {
+    toast.error("Please upload a video first");
+    return;
+  }
+
+  setIsAnalyzing(true);
+  setResult(null);
+
+  try {
+    const formData = new FormData();
+    formData.append("file", selectedFile); // must be "file" to match FastAPI
+
+    const response = await fetch(
+      `${API_URL}/predict`,
+      {
+        method: "POST",
+        body: formData,
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Backend error:", errorText);
+      toast.error("Backend error while analyzing video");
       return;
     }
 
-    setIsAnalyzing(true);
-    setResult(null);
-
-    // Simulate API call to your Python backend
-    // Replace this with actual API call to your Streamlit/Python backend
-    setTimeout(() => {
-      // Mock result - replace with actual API response
-      const mockResult = {
-        prediction: Math.random() > 0.5 ? "real" : "fake",
-        confidence: Math.random() * 30 + 70, // 70-100%
-      } as const;
-
-      setResult(mockResult);
-      setIsAnalyzing(false);
-      
-      toast.success("Analysis complete!");
-    }, 4000);
-
-    // TODO: Replace with actual API call:
-    
-    const formData = new FormData();
-    formData.append('file', selectedFile);
-    
-    const response = await fetch('http://127.0.0.1:8000/predict', {
-      method: 'POST',
-      body: formData,
-    });
-    
     const data = await response.json();
+    console.log("API response:", data);
+
+    // Backend returns "REAL" / "FAKE" → convert to "real" / "fake"
+    const prediction =
+      data.prediction && typeof data.prediction === "string"
+        ? (data.prediction.toLowerCase() as "real" | "fake")
+        : "real";
+
     setResult({
-      prediction: data.prediction,
-      confidence: data.confidence,
+      prediction,
+      confidence: data.confidence ?? 0,
     });
+
+    toast.success("Analysis complete!");
+  } catch (err) {
+    console.error(err);
+    toast.error("Something went wrong while analyzing the video");
+  } finally {
     setIsAnalyzing(false);
-    
-  };
+  }
+};
+
 
   const handleReset = () => {
     setSelectedFile(null);
