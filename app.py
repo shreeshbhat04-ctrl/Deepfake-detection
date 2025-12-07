@@ -18,7 +18,7 @@ app = FastAPI()
 allowed_origins = [
     "http://localhost:5173",                 # local vite
     "http://localhost:8080",                 # if you're using that
-    "https://vercel.com/shreesha-hbs-projects/deepfake-detection",    # ← replace with real URL after first deploy
+    "https://deepfake-detection-lime.vercel.app/",    # ← replace with real URL after first deploy
 ]
 app.add_middleware(
     CORSMiddleware,
