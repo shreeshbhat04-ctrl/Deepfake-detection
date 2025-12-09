@@ -22,8 +22,8 @@ Framework: Core training logic implemented in PyTorch.
 # The Evolution of Face Detection
 
 
-# Phase 1 (OLD SETUP): 
-Initially built using Haar Cascade (Haarcascade_frontalface_default.xml). While fast, this method yielded unsatisfactory results due to poor alignment and sensitivity to lighting/angles.
+# Phase 1 (Old Setup): 
+Initially built using Haar Cascade (Haarcascade_frontalface_default.xml). While fast, this method yielded unsatisfactory results due to poor alignment and sensitivity to lighting/angles.This pipline can be accesed in my jupyter notebook file where i shown how this pipline works and how it runs facial analysis.
 
 # Phase 2 (Current): 
 Swapped to MTCNN (Multi-Task Cascaded Convolutional Networks) using TensorFlow. This upgrade significantly improved accuracy by:
