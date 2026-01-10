@@ -3,6 +3,7 @@
 - A Hybrid Spatiotemporal System for Misinformation Detection
 
 - Status: Deployed & Active
+  
 - Accuracy: ~85% on Validation Set
 
 - This project aims to detect deepfake videos using a hybrid Deep Learning approach, combining Convolutional Neural Networks (CNNs) for spatial feature extraction and Recurrent Neural Networks (RNNs) for temporal analysis. The system is designed to identify manipulation artifacts that are invisible to the naked eye, helping to combat the spread of misinformation.
