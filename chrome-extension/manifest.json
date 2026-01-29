@@ -11,7 +11,8 @@
     ],
     "host_permissions": [
         "http://localhost:8000/*",
-        "https://*.ngrok-free.app/*"
+        "https://*.ngrok-free.app/*",
+        "https://shreesha1-deepfake.hf.space/*"
     ],
     "background": {
         "service_worker": "background.js"
