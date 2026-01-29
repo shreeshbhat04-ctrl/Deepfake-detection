@@ -26,8 +26,8 @@ wheelhouse/
 .ipynb_checkpoints/
 
 # Project-Specific (Huge files)
-data/
-saved_models/
+dlib/
+
 
 # Temporary files
 temp_video.mp4

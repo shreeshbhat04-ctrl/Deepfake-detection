@@ -16,9 +16,9 @@ RUN pip install --upgrade pip && \
 # Copy code + models
 COPY . .
 
-# Cloud Run will set PORT env; default to 8080 if not set
-ENV PORT=8080
-EXPOSE 8080
+# Hugging Face Spaces expects port 7860
+ENV PORT=7860
+EXPOSE 7860
 
-# Use sh -c so ${PORT} is expanded by the shell
-CMD ["sh", "-c", "uvicorn app:app --host 0.0.0.0 --port ${PORT:-8080}"]
+# Start uvicorn on port 7860
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860"]

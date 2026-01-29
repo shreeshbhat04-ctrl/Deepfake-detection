@@ -4,18 +4,21 @@ import torch
 import numpy as np
 from torch.utils.data import Dataset
 from torchvision import transforms
-# Import MTCNN for better face detection
-from mtcnn import MTCNN
+# Import Facenet-PyTorch for Face Detection (No TensorFlow needed)
+from facenet_pytorch import MTCNN
 
 # --- 1. CONFIGURATION ---
 # 10 frames is enough for a resume project and runs faster on CPU
 SEQUENCE_LENGTH_DEFAULT = 10 
 IMG_SIZE = 224
+DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # --- 2. INITIALIZE MTCNN ---
-print(f"Initializing MTCNN...")
-# FIX: The standard 'mtcnn' library doesn't take arguments here
-mtcnn_detector = MTCNN()
+print(f"Initializing MTCNN on {DEVICE}...")
+# keep_all=True returns all faces, we'll sort them. 
+# select_largest=False because we manually sort by confidence/size if needed, but 'keep_all=False' (default) returns only best face? 
+# actually detect returns all.
+mtcnn_detector = MTCNN(keep_all=True, device=DEVICE)
 
 # Standard normalization
 data_transforms = transforms.Compose([
@@ -43,36 +46,56 @@ def extract_frames_from_video(video_path, sequence_length=SEQUENCE_LENGTH_DEFAUL
         ret, frame = cap.read()
         if not ret: continue
 
-        # Convert to RGB for MTCNN
+        # Convert to RGB for MTCNN (OpenCV is BGR)
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         
         try:
             # Detect faces
-            faces = mtcnn_detector.detect_faces(frame_rgb)
+            # boxes given as [x1, y1, x2, y2]
+            boxes, probs = mtcnn_detector.detect(frame_rgb)
             
-            if len(faces) > 0:
-                # Get highest confidence face
-                best_face = sorted(faces, key=lambda x: x['confidence'], reverse=True)[0]
-                x, y, w, h = best_face['box']
+            if boxes is not None and len(boxes) > 0:
+                # Get highest probability face or first one?
+                # probs is list of probabilities. Filter valid ones.
+                # Just take the one with standard highest probability.
                 
-                # Fix negative coordinates
-                x, y = max(0, x), max(0, y)
+                # Combine boxes and probs to sort
+                face_list = []
+                for box, prob in zip(boxes, probs):
+                    if prob is None: continue
+                    face_list.append({'box': box, 'conf': prob})
+                
+                if not face_list: continue
+
+                best_face = sorted(face_list, key=lambda x: x['conf'], reverse=True)[0]
+                x1, y1, x2, y2 = best_face['box']
+                
+                w = x2 - x1
+                h = y2 - y1
+                x = x1
+                y = y1
+                
+                # Fix negative coordinates and float
+                x, y = max(0, int(x)), max(0, int(y))
+                w, h = int(w), int(h)
+                
                 # Add padding (10%)
                 pad_w = int(w * 0.1)
                 pad_h = int(h * 0.1)
                 
                 img_h, img_w, _ = frame.shape
-                y1 = max(0, y - pad_h)
-                y2 = min(img_h, y + h + pad_h)
-                x1 = max(0, x - pad_w)
-                x2 = min(img_w, x + w + pad_w)
+                y_min = max(0, y - pad_h)
+                y_max = min(img_h, y + h + pad_h)
+                x_min = max(0, x - pad_w)
+                x_max = min(img_w, x + w + pad_w)
                 
-                face_crop = frame[y1:y2, x1:x2]
+                face_crop = frame[y_min:y_max, x_min:x_max]
                 
                 if face_crop.size != 0:
                     processed_frame = data_transforms(face_crop)
                     processed_frames.append(processed_frame)
-        except Exception:
+        except Exception as e:
+            # print(f"Frame processing error: {e}")
             continue
 
     cap.release()
@@ -80,14 +103,73 @@ def extract_frames_from_video(video_path, sequence_length=SEQUENCE_LENGTH_DEFAUL
     if not processed_frames:
         return None
     
-    # Padding
+    # Padding if we missed some frames due to detection failure
     while len(processed_frames) < sequence_length:
         processed_frames.append(processed_frames[-1])
 
     return torch.stack(processed_frames[:sequence_length])
 
 
-# --- 4. DATASET CLASS (With Limits) ---
+# --- 3b. IMAGE PROCESSING FUNCTION ---
+def process_image(image_path, sequence_length=SEQUENCE_LENGTH_DEFAULT):
+    try:
+        frame = cv2.imread(image_path)
+        if frame is None:
+            return None
+
+        # Convert to RGB
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        
+        # Detect faces
+        boxes, probs = mtcnn_detector.detect(frame_rgb)
+        
+        if boxes is None or len(boxes) == 0:
+            return None
+
+        face_list = []
+        for box, prob in zip(boxes, probs):
+            if prob is None: continue
+            face_list.append({'box': box, 'conf': prob})
+        
+        if not face_list: return None
+
+        best_face = sorted(face_list, key=lambda x: x['conf'], reverse=True)[0]
+        x1, y1, x2, y2 = best_face['box']
+        
+        w = x2 - x1
+        h = y2 - y1
+        x = x1
+        y = y1
+        
+        # Integer conversion and padding
+        x, y = max(0, int(x)), max(0, int(y))
+        w, h = int(w), int(h)
+        
+        pad_w = int(w * 0.1)
+        pad_h = int(h * 0.1)
+        
+        img_h, img_w, _ = frame.shape
+        y_min = max(0, y - pad_h)
+        y_max = min(img_h, y + h + pad_h)
+        x_min = max(0, x - pad_w)
+        x_max = min(img_w, x + w + pad_w)
+        
+        face_crop = frame[y_min:y_max, x_min:x_max]
+        
+        if face_crop.size == 0:
+            return None
+
+        processed_frame = data_transforms(face_crop) # [3, 224, 224]
+        
+        # Repeat this frame to create a fake sequence
+        return processed_frame.unsqueeze(0).repeat(sequence_length, 1, 1, 1)
+
+    except Exception as e:
+        print(f"Error processing image: {e}")
+        return None
+
+
+# --- 4. DATASET CLASS ---
 class DeepfakeDataset(Dataset):
     def __init__(self, data_dir, sequence_length=SEQUENCE_LENGTH_DEFAULT):
         self.data_dir = data_dir
@@ -95,7 +177,7 @@ class DeepfakeDataset(Dataset):
         self.video_files = []
         self.labels = []
 
-        print(f"🔍 Scanning for videos in {data_dir}...")
+        print(f" Scanning for videos in {data_dir}...")
 
         def find_videos_in_folder(folder_path):
             video_paths = []
@@ -110,10 +192,7 @@ class DeepfakeDataset(Dataset):
         real_videos = find_videos_in_folder(real_path)
         
         if len(real_videos) > 400:
-            print(f"   Found {len(real_videos)} REAL videos. Limiting to first 400.")
             real_videos = real_videos[:400]
-        else:
-            print(f"   Found {len(real_videos)} REAL videos.")
 
         for vid in real_videos:
             self.video_files.append(vid)
@@ -124,17 +203,14 @@ class DeepfakeDataset(Dataset):
         fake_videos = find_videos_in_folder(fake_path)
         
         if len(fake_videos) > 400:
-            print(f"   Found {len(fake_videos)} FAKE videos. Limiting to first 400.")
             fake_videos = fake_videos[:400]
-        else:
-            print(f"   Found {len(fake_videos)} FAKE videos.")
 
         for vid in fake_videos:
             self.video_files.append(vid)
             self.labels.append(1)
 
         self.total_videos = len(self.video_files)
-        print(f"✅ Total dataset size: {self.total_videos} videos")
+        print(f" Total dataset size: {self.total_videos} videos")
 
     def __len__(self):
         return len(self.video_files)
