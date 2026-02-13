@@ -1,7 +1,7 @@
 # Deepfake Detection with AI Text Analysis
 
 This project aims to detect deepfakes using neural networks such as CNN's and RNN's, combined with AI-generated text detection for multi-modal analysis.
-
+Extension download link: "https://microsoftedge.microsoft.com/addons/detail/defake-deepfake-ai-de/mgooddhciidpmcncdijjmjoijefimfec"
 ## Features
 
 ### 🎥 Video Deepfake Detection
